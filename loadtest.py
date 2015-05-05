@@ -20,16 +20,17 @@ def register():
             hawk_session=resp.headers['hawk-session-token'],
             server_url=SERVER_URL)
     except KeyError:
-        print resp
+        print('Could not auth on %r' % SERVER_URL)
+        print(resp)
         raise
     else:
-        self.incr_counter("register")
-        return self.hawk_auth
+        return hawk_auth
 
 
 @scenario(5)
 def place_call():
-    return requests.get('http://localhost:8000')
+    hawk_auth = register()
+    print(hawk_auth)
 
 
 if __name__ == '__main__':
