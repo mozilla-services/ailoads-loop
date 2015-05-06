@@ -8,10 +8,12 @@ SERVER_URL = "https://loop.stage.mozaws.net:443"
 
 
 class LoopServer(object):
-    def __init__(self, sp_url=SP_URL):
-        # 1. register
-        data = {'simple_push_url': sp_url}
+    def __init__(self):
         self.auth = None
+
+    def authenticate(self, data=None):
+        if data is None:
+            data = {'simple_push_url': SP_URL}
         resp = self.post('/registration', data)
         try:
             self.auth = HawkAuth(
@@ -37,9 +39,11 @@ class LoopServer(object):
 
 
 @scenario(5)
-def place_call():
+def setup_call():
+    """Setting up a call"""
     # 1. register
     server = LoopServer()
+    server.authenticate()
 
     # 2. generate a call URL
     data = {'callerId': 'alexis@mozilla.com'}
@@ -60,4 +64,4 @@ def place_call():
 
 
 if __name__ == '__main__':
-    place_call()
+    setup_call()
