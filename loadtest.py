@@ -7,7 +7,9 @@ SP_URL = "https://call.stage.mozaws.net/"
 SERVER_URL = "https://loop.stage.mozaws.net:443"
 
 
-def register():
+@scenario(5)
+def place_call():
+    # 1. register
     data = {'simple_push_url': SP_URL}
 
     resp = requests.post(
@@ -23,14 +25,36 @@ def register():
         print('Could not auth on %r' % SERVER_URL)
         print(resp)
         raise
-    else:
-        return hawk_auth
+
+    # 2. generate a call URL
+    resp = requests.post(
+            SERVER_URL + '/call-url',
+            data=json.dumps({'callerId': 'alexis@mozilla.com'}),
+            headers={'Content-Type': 'application/json'},
+            auth=hawk_auth
+    )
 
 
-@scenario(5)
-def place_call():
-    hawk_auth = register()
-    print(hawk_auth)
+    data = resp.json()
+    call_url = data.get('callUrl', data.get('call_url'))
+    token = call_url.split('/').pop()
+
+    # 3. initiate call
+    resp = requests.post(
+        SERVER_URL + '/calls/%s' % token,
+        data=json.dumps({"callType": "audio-video"}),
+        headers={'Content-Type': 'application/json'}
+    )
+
+    call_data = resp.json()
+
+    # 4. list pending calls
+    resp = requests.get(
+        SERVER_URL + '/calls?version=200',
+        auth=hawk_auth)
+
+    calls = resp.json()['calls']
+
 
 
 if __name__ == '__main__':
