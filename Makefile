@@ -21,3 +21,6 @@ test: build
 	$(BIN)/pip install flake8 tox
 	$(BIN)/flake8 ailoads
 	$(BIN)/tox
+
+build_docker:
+	docker build -t loop/loadtest .
