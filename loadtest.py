@@ -7,8 +7,10 @@ from requests_hawk import HawkAuth
 from ailoads.fmwk import scenario, requests
 
 
-SP_URL = "https://call.stage.mozaws.net/"
-SERVER_URL = "https://loop.stage.mozaws.net:443"
+SP_URL = os.getenv('LOOP_SP_URL',
+                   "https://call.stage.mozaws.net/")
+SERVER_URL = os.getenv('LOOP_SERVER_URL',
+                       "https://loop.stage.mozaws.net:443")
 MAX_NUMBER_OF_PEOPLE_JOINING = 5
 PERCENTAGE_OF_REFRESH = 50
 PERCENTAGE_OF_MANUAL_LEAVE = 60

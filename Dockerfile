@@ -19,4 +19,4 @@ RUN git clone https://github.com/tarekziade/ailoads-loop /home/loads/ailoads-loo
 RUN cd /home/loads/ailoads-loop; make build
 
 # run the test
-CMD cd /home/loads/ailoads-loop; bin/ailoads -u 100 -d 60
+CMD cd /home/loads/ailoads-loop; bin/ailoads -d $LOOP_DURATION -u $LOOP_NB_USERS

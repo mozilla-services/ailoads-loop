@@ -2,10 +2,10 @@ HERE = $(shell pwd)
 BIN = $(HERE)/bin
 PYTHON = $(BIN)/python3.4
 
-INSTALL = $(BIN)/pip install 
+INSTALL = $(BIN)/pip install
 
 
-.PHONY: all test build 
+.PHONY: all test build
 
 all: build test
 
@@ -26,4 +26,4 @@ build_docker:
 	docker build -t loop/loadtest .
 
 run_docker:
-	docker run loop/loadtest
+	docker run -e LOOP_DURATION=30 -e LOOP_NB_USERS=4 loop/loadtest
