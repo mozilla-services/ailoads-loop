@@ -10,7 +10,7 @@ INSTALL = $(BIN)/pip install
 all: build test
 
 $(PYTHON):
-	virtualenv-3.4 $(VTENV_OPTS) .
+	pyvenv $(VTENV_OPTS) .
 
 build: $(PYTHON)
 	$(BIN)/pip install requests requests_hawk

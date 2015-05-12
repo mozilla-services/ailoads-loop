@@ -1,11 +1,11 @@
-FROM stackbrew/debian:wheezy
+FROM python:3.4-wheezy
 MAINTAINER Mozilla Cloud Services
 
 RUN echo "deb http://ftp.debian.org/debian sid main" >> /etc/apt/sources.list
 
 RUN apt-get update
 RUN apt-get install -y python3-pip
-RUN apt-get install -y python-virtualenv
+RUN apt-get install -y python3-virtualenv
 RUN apt-get install -y git
 RUN apt-get install -y wget
 RUN apt-get install -y python3-dev
