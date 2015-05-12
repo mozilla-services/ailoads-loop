@@ -30,4 +30,4 @@ EXPOSE 8086
 EXPOSE 8084
 
 ADD boto.cfg /etc/boto.cfg
-CMD /home/loads/ailoads-loop/ailoads
+CMD /home/loads/ailoads-loop/bin/ailoads

@@ -1,6 +1,6 @@
 HERE = $(shell pwd)
 BIN = $(HERE)/bin
-PYTHON = $(BIN)/python
+PYTHON = $(BIN)/python3.4
 
 INSTALL = $(BIN)/pip install 
 
@@ -10,7 +10,7 @@ INSTALL = $(BIN)/pip install
 all: build test
 
 $(PYTHON):
-	virtualenv $(VTENV_OPTS) .
+	virtualenv-3.4 $(VTENV_OPTS) .
 
 build: $(PYTHON)
 	$(BIN)/pip install requests requests_hawk
@@ -24,3 +24,6 @@ test: build
 
 build_docker:
 	docker build -t loop/loadtest .
+
+run_docker:
+	docker run loop/loadtest
