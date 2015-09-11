@@ -59,7 +59,7 @@ class LoopServer(object):
             auth=self.auth)
 
 
-@scenario(50)
+@scenario(100)
 def setup_room():
     """Setting up a room"""
     room_size = MAX_NUMBER_OF_PEOPLE_JOINING
@@ -122,8 +122,8 @@ def setup_room():
         server.delete('/rooms/%s' % room_token)
 
 
-@scenario(50)
-def setup_call():
+#@scenario(50)
+def __setup_call():
     """Setting up a call"""
     # 1. register
     server = LoopServer()
@@ -133,6 +133,7 @@ def setup_call():
     data = {'callerId': 'alexis@mozilla.com'}
     resp = server.post('/call-url', data)
     data = resp.json()
+
     call_url = data.get('callUrl', data.get('call_url'))
     token = call_url.split('/').pop()
 
