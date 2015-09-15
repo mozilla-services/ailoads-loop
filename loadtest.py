@@ -2,6 +2,12 @@ import random
 import json
 import os
 from base64 import b64encode
+import uuid
+from urllib.parse import urlparse
+
+from fxa.core import Client
+from fxa.tests.utils import TestEmailAccount
+from fxa.plugins.requests import FxABrowserIDAuth
 
 from requests_hawk import HawkAuth
 from ailoads.fmwk import scenario, requests
@@ -11,6 +17,8 @@ SP_URL = os.getenv('LOOP_SP_URL',
                    "https://call.stage.mozaws.net/")
 SERVER_URL = os.getenv('LOOP_SERVER_URL',
                        "https://loop.stage.mozaws.net:443")
+DEFAULT_FXA_URL = os.getenv("LOOP_FXA_URL",
+                            "https://api.accounts.firefox.com/v1")
 MAX_NUMBER_OF_PEOPLE_JOINING = 5
 PERCENTAGE_OF_REFRESH = 50
 PERCENTAGE_OF_MANUAL_LEAVE = 60
@@ -24,14 +32,40 @@ def picked(percent):
 
 class LoopServer(object):
     def __init__(self):
-        self.auth = None
+        self.hawk_auth = None
+        self.fxa_server = DEFAULT_FXA_URL
+        self.fxa_password = uuid.uuid4().hex
+        self.fxa_email = "loop-%s@restmail.net" % self.fxa_password
+        self.fxa_auth = self.get_fxa_auth()
+
+    def get_fxa_auth(self):
+        acct = TestEmailAccount(self.fxa_email)
+        client = Client(self.fxa_server)
+        fxa_session = client.create_account(self.fxa_email,
+                                            password=self.fxa_password)
+
+        def is_verify_email(m):
+            return "x-verify-code" in m["headers"]
+
+        message = acct.wait_for_email(is_verify_email)
+        fxa_session.verify_email_code(message["headers"]["x-verify-code"])
+
+        url = urlparse(SERVER_URL)
+        audience = "%s://%s" % (url.scheme, url.hostname)
+
+        return FxABrowserIDAuth(
+            self.fxa_email,
+            password=self.fxa_password,
+            audience=audience,
+            server_url=self.fxa_server)
 
     def authenticate(self, data=None):
         if data is None:
             data = {'simple_push_url': SP_URL}
-        resp = self.post('/registration', data)
+        resp = self.post('/registration', data,
+                         auth=self.fxa_auth)
         try:
-            self.auth = HawkAuth(
+            self.hawk_auth = HawkAuth(
                 hawk_session=resp.headers['hawk-session-token'],
                 server_url=SERVER_URL)
         except KeyError:
@@ -39,36 +73,44 @@ class LoopServer(object):
             print(resp)
             raise
 
-    def post(self, endpoint, data):
+    def post(self, endpoint, data, auth=None):
+        if auth is None:
+            auth = self.hawk_auth
+
         return requests.post(
             SERVER_URL + endpoint,
             data=json.dumps(data),
             headers={'Content-Type': 'application/json'},
-            auth=self.auth)
+            auth=auth)
 
-    def get(self, endpoint):
+    def get(self, endpoint, auth=None):
+        if auth is None:
+            auth = self.hawk_auth
+
         return requests.get(
             SERVER_URL + endpoint,
             headers={'Content-Type': 'application/json'},
-            auth=self.auth)
+            auth=auth)
 
-    def delete(self, endpoint):
+    def delete(self, endpoint, auth=None):
+        if auth is None:
+            auth = self.hawk_auth
+
         return requests.delete(
             SERVER_URL + endpoint,
             headers={'Content-Type': 'application/json'},
-            auth=self.auth)
+            auth=auth)
 
 
-@scenario(100)
+@scenario(50)
 def setup_room():
     """Setting up a room"""
     room_size = MAX_NUMBER_OF_PEOPLE_JOINING
 
     # 1. register
     server = LoopServer()
-    server.authenticate({"simplePushURLs": {
-                            "calls": SP_URL,
-                            "rooms": SP_URL}})
+    server.authenticate({"simplePushURLs": {"calls": SP_URL,
+                                            "rooms": SP_URL}})
 
     # 2. create room - sometimes with a context
     data = {
@@ -122,30 +164,21 @@ def setup_room():
         server.delete('/rooms/%s' % room_token)
 
 
-#@scenario(50)
-def __setup_call():
+@scenario(50)
+def setup_call():
     """Setting up a call"""
     # 1. register
     server = LoopServer()
     server.authenticate()
 
-    # 2. generate a call URL
-    data = {'callerId': 'alexis@mozilla.com'}
-    resp = server.post('/call-url', data)
-    data = resp.json()
-
-    call_url = data.get('callUrl', data.get('call_url'))
-    token = call_url.split('/').pop()
-
-    # 3. initiate call
-    data = {"callType": "audio-video"}
-    resp = server.post('/calls/%s' % token, data)
+    # 2. initiate call
+    data = {"callType": "audio-video", "calleeId": server.fxa_email}
+    resp = server.post('/calls', data)
     call_data = resp.json()
 
-    # 4. list pending calls
+    # 3. list pending calls
     resp = server.get('/calls?version=200')
     calls = resp.json()['calls']
-
 
 
 if __name__ == '__main__':

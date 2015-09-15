@@ -13,7 +13,7 @@ $(PYTHON):
 	pyvenv $(VTENV_OPTS) .
 
 build: $(PYTHON)
-	$(BIN)/pip install requests requests_hawk
+	$(BIN)/pip install requests requests_hawk PyFxA
 	$(BIN)/pip install https://github.com/tarekziade/ailoads/archive/master.zip
 
 
