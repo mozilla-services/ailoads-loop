@@ -59,14 +59,27 @@ class FXAUser(object):
             server_url=self.server)
 
 
+_CONNECTIONS = {}
+
+def get_connection(id=None):
+    if id is None or id not in _CONNECTIONS:
+        id = uuid.uuid4().hex
+        conn = LoopConnection(id)
+        _CONNECTIONS[id] = conn
+
+    return _CONNECTIONS[id]
+
+
 class LoopConnection(object):
 
-    def __init__(self, user=None):
-        if user is None:
-            user = FXAUser()
-        self.user = user
+    def __init__(self, id):
+        self.id = id
+        self.user = FXAUser()
+        self.authenticated = False
 
     def authenticate(self, data=None):
+        if self.authenticated:
+            return
         if data is None:
             data = {'simple_push_url': SP_URL}
         resp = self.post('/registration', data)
@@ -78,6 +91,7 @@ class LoopConnection(object):
             print('Could not auth on %r' % SERVER_URL)
             print(resp)
             raise
+        self.authenticated = True
 
     def _auth(self):
         if self.user.hawk_auth is None:
@@ -110,7 +124,7 @@ def setup_room():
     room_size = MAX_NUMBER_OF_PEOPLE_JOINING
 
     # 1. register
-    conn = LoopConnection()
+    conn = get_connection('user1')
     conn.authenticate({"simplePushURLs": {"calls": SP_URL,
                                           "rooms": SP_URL}})
 
@@ -142,7 +156,7 @@ def setup_room():
 
     # 4. have other folks join the room as well, refresh and leave
     for x in range(num_participants - 1):
-        peer_conn = LoopConnection()
+        peer_conn = get_connection('user%d' % (x+2))
         peer_conn.authenticate()
         data = {"action": "join",
                 "displayName": "User%d" % (x + 2),
@@ -170,7 +184,7 @@ def setup_room():
 def setup_call():
     """Setting up a call"""
     # 1. register
-    conn = LoopConnection()
+    conn = get_connection('user1')
     conn.authenticate()
 
     # 2. initiate call
