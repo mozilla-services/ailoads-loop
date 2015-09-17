@@ -30,42 +30,48 @@ def picked(percent):
     return random.randint(0, 100) < percent
 
 
-class LoopServer(object):
+class FXAUser(object):
     def __init__(self):
+        self.server = DEFAULT_FXA_URL
+        self.password = uuid.uuid4().hex
+        self.email = "loop-%s@restmail.net" % self.password
+        self.auth = self.get_auth()
         self.hawk_auth = None
-        self.fxa_server = DEFAULT_FXA_URL
-        self.fxa_password = uuid.uuid4().hex
-        self.fxa_email = "loop-%s@restmail.net" % self.fxa_password
-        self.fxa_auth = self.get_fxa_auth()
 
-    def get_fxa_auth(self):
-        acct = TestEmailAccount(self.fxa_email)
-        client = Client(self.fxa_server)
-        fxa_session = client.create_account(self.fxa_email,
-                                            password=self.fxa_password)
+    def get_auth(self):
+        acct = TestEmailAccount(self.email)
+        client = Client(self.server)
+        session = client.create_account(self.email,
+                                        password=self.password)
 
         def is_verify_email(m):
             return "x-verify-code" in m["headers"]
 
         message = acct.wait_for_email(is_verify_email)
-        fxa_session.verify_email_code(message["headers"]["x-verify-code"])
-
+        session.verify_email_code(message["headers"]["x-verify-code"])
         url = urlparse(SERVER_URL)
         audience = "%s://%s" % (url.scheme, url.hostname)
 
         return FxABrowserIDAuth(
-            self.fxa_email,
-            password=self.fxa_password,
+            self.email,
+            password=self.password,
             audience=audience,
-            server_url=self.fxa_server)
+            server_url=self.server)
+
+
+class LoopConnection(object):
+
+    def __init__(self, user=None):
+        if user is None:
+            user = FXAUser()
+        self.user = user
 
     def authenticate(self, data=None):
         if data is None:
             data = {'simple_push_url': SP_URL}
-        resp = self.post('/registration', data,
-                         auth=self.fxa_auth)
+        resp = self.post('/registration', data)
         try:
-            self.hawk_auth = HawkAuth(
+            self.user.hawk_auth = HawkAuth(
                 hawk_session=resp.headers['hawk-session-token'],
                 server_url=SERVER_URL)
         except KeyError:
@@ -73,33 +79,29 @@ class LoopServer(object):
             print(resp)
             raise
 
-    def post(self, endpoint, data, auth=None):
-        if auth is None:
-            auth = self.hawk_auth
+    def _auth(self):
+        if self.user.hawk_auth is None:
+            return self.user.auth
+        return self.user.hawk_auth
 
+    def post(self, endpoint, data):
         return requests.post(
             SERVER_URL + endpoint,
             data=json.dumps(data),
             headers={'Content-Type': 'application/json'},
-            auth=auth)
+            auth=self._auth())
 
-    def get(self, endpoint, auth=None):
-        if auth is None:
-            auth = self.hawk_auth
-
+    def get(self, endpoint):
         return requests.get(
             SERVER_URL + endpoint,
             headers={'Content-Type': 'application/json'},
-            auth=auth)
+            auth=self._auth())
 
-    def delete(self, endpoint, auth=None):
-        if auth is None:
-            auth = self.hawk_auth
-
+    def delete(self, endpoint):
         return requests.delete(
             SERVER_URL + endpoint,
             headers={'Content-Type': 'application/json'},
-            auth=auth)
+            auth=self._auth())
 
 
 @scenario(50)
@@ -108,9 +110,9 @@ def setup_room():
     room_size = MAX_NUMBER_OF_PEOPLE_JOINING
 
     # 1. register
-    server = LoopServer()
-    server.authenticate({"simplePushURLs": {"calls": SP_URL,
-                                            "rooms": SP_URL}})
+    conn = LoopConnection()
+    conn.authenticate({"simplePushURLs": {"calls": SP_URL,
+                                          "rooms": SP_URL}})
 
     # 2. create room - sometimes with a context
     data = {
@@ -128,7 +130,7 @@ def setup_room():
             "wrappedKey": b64encode(os.urandom(16)).decode('utf-8')
         }
 
-    resp = server.post('/rooms', data)
+    resp = conn.post('/rooms', data)
     room_token = resp.json().get('roomToken')
 
     # 3. join room
@@ -136,48 +138,48 @@ def setup_room():
     data = {"action": "join",
             "displayName": "User1",
             "clientMaxSize": room_size}
-    server.post('/rooms/%s' % room_token, data)
+    conn.post('/rooms/%s' % room_token, data)
 
     # 4. have other folks join the room as well, refresh and leave
     for x in range(num_participants - 1):
-        peer_server = LoopServer()
-        peer_server.authenticate()
+        peer_conn = LoopConnection()
+        peer_conn.authenticate()
         data = {"action": "join",
                 "displayName": "User%d" % (x + 2),
                 "clientMaxSize": room_size}
 
-        peer_server.post('/rooms/%s' % room_token, data)
+        peer_conn.post('/rooms/%s' % room_token, data)
 
         if picked(PERCENTAGE_OF_REFRESH):
-            peer_server.post('/rooms/%s' % room_token,
-                             data={"action": "refresh"})
+            peer_conn.post('/rooms/%s' % room_token,
+                           data={"action": "refresh"})
 
         if picked(PERCENTAGE_OF_MANUAL_LEAVE):
-            peer_server.post('/rooms/%s' % room_token,
-                             data={"action": "leave"})
+            peer_conn.post('/rooms/%s' % room_token,
+                           data={"action": "leave"})
 
     # 5. leave the room
-    server.post('/rooms/%s' % room_token, data={"action": "leave"})
+    conn.post('/rooms/%s' % room_token, data={"action": "leave"})
 
     # 6. delete the room (sometimes)
     if picked(PERCENTAGE_OF_MANUAL_ROOM_DELETE):
-        server.delete('/rooms/%s' % room_token)
+        conn.delete('/rooms/%s' % room_token)
 
 
 @scenario(50)
 def setup_call():
     """Setting up a call"""
     # 1. register
-    server = LoopServer()
-    server.authenticate()
+    conn = LoopConnection()
+    conn.authenticate()
 
     # 2. initiate call
-    data = {"callType": "audio-video", "calleeId": server.fxa_email}
-    resp = server.post('/calls', data)
+    data = {"callType": "audio-video", "calleeId": conn.user.email}
+    resp = conn.post('/calls', data)
     call_data = resp.json()
 
     # 3. list pending calls
-    resp = server.get('/calls?version=200')
+    resp = conn.get('/calls?version=200')
     calls = resp.json()['calls']
 
 
