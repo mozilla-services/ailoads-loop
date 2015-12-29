@@ -1,13 +1,8 @@
 import random
 import json
 import os
-from base64 import b64encode
+from base64 import b64encode, urlsafe_b64decode
 import uuid
-from urllib.parse import urlparse
-
-from fxa.core import Client
-from fxa.tests.utils import TestEmailAccount
-from fxa.plugins.requests import FxABrowserIDAuth
 
 from requests_hawk import HawkAuth
 from ailoads.fmwk import scenario, requests
@@ -17,49 +12,33 @@ SP_URL = os.getenv('LOOP_SP_URL',
                    "https://call.stage.mozaws.net/")
 SERVER_URL = os.getenv('LOOP_SERVER_URL',
                        "https://loop.stage.mozaws.net:443")
-DEFAULT_FXA_URL = os.getenv("LOOP_FXA_URL",
-                            "https://api.accounts.firefox.com/v1")
+FXA_BROWSERID_ASSERTION = os.getenv("FXA_BROWSERID_ASSERTION")
+
 MAX_NUMBER_OF_PEOPLE_JOINING = 5
 PERCENTAGE_OF_REFRESH = 50
 PERCENTAGE_OF_MANUAL_LEAVE = 60
 PERCENTAGE_OF_MANUAL_ROOM_DELETE = 80
 PERCENTAGE_OF_ROOM_CONTEXT = 75
 
+if not FXA_BROWSERID_ASSERTION:
+    raise ValueError("Please define FXA_BROWSERID_ASSERTION env variable.")
+
 
 def picked(percent):
     return random.randint(0, 100) < percent
 
 
-class FXAUser(object):
-    def __init__(self):
-        self.server = DEFAULT_FXA_URL
-        self.password = uuid.uuid4().hex
-        self.email = "loop-%s@restmail.net" % self.password
-        self.auth = self.get_auth()
-        self.hawk_auth = None
+def extract_email_from_assertion(assertion):
+    fragment = assertion.split('.')[1]
+    decoded_fragment = urlsafe_b64decode(fragment).decode('utf-8')
+    info = json.loads(decoded_fragment)
+    email = info['fxa-verifiedEmail']
+    return email
 
-    def get_auth(self):
-        acct = TestEmailAccount(self.email)
-        client = Client(self.server)
-        session = client.create_account(self.email,
-                                        password=self.password)
-
-        def is_verify_email(m):
-            return "x-verify-code" in m["headers"]
-
-        message = acct.wait_for_email(is_verify_email)
-        session.verify_email_code(message["headers"]["x-verify-code"])
-        url = urlparse(SERVER_URL)
-        audience = "%s://%s" % (url.scheme, url.hostname)
-
-        return FxABrowserIDAuth(
-            self.email,
-            password=self.password,
-            audience=audience,
-            server_url=self.server)
-
+FXA_EMAIL = extract_email_from_assertion(FXA_BROWSERID_ASSERTION)
 
 _CONNECTIONS = {}
+
 
 def get_connection(id=None):
     if id is None or id not in _CONNECTIONS:
@@ -74,8 +53,13 @@ class LoopConnection(object):
 
     def __init__(self, id):
         self.id = id
-        self.user = FXAUser()
+        self.headers = {
+            "Authorization": "BrowserID %s" % FXA_BROWSERID_ASSERTION,
+            'Content-Type': 'application/json'
+        }
+        self.timeout = 2
         self.authenticated = False
+        self.user_hawk_auth = None
 
     def authenticate(self, data=None):
         if self.authenticated:
@@ -83,8 +67,9 @@ class LoopConnection(object):
         if data is None:
             data = {'simple_push_url': SP_URL}
         resp = self.post('/registration', data)
+        resp.raise_for_status()
         try:
-            self.user.hawk_auth = HawkAuth(
+            self.user_hawk_auth = HawkAuth(
                 hawk_session=resp.headers['hawk-session-token'],
                 server_url=SERVER_URL)
         except KeyError:
@@ -94,28 +79,31 @@ class LoopConnection(object):
         self.authenticated = True
 
     def _auth(self):
-        if self.user.hawk_auth is None:
-            return self.user.auth
-        return self.user.hawk_auth
+        headers = self.headers.copy()
+        result = {'headers': headers}
+        if self.user_hawk_auth:
+            del headers['Authorization']
+            result['auth'] = self.user_hawk_auth
+        return result
 
     def post(self, endpoint, data):
         return requests.post(
             SERVER_URL + endpoint,
             data=json.dumps(data),
-            headers={'Content-Type': 'application/json'},
-            auth=self._auth())
+            timeout=self.timeout,
+            **self._auth())
 
     def get(self, endpoint):
         return requests.get(
             SERVER_URL + endpoint,
-            headers={'Content-Type': 'application/json'},
-            auth=self._auth())
+            timeout=self.timeout,
+            **self._auth())
 
     def delete(self, endpoint):
         return requests.delete(
             SERVER_URL + endpoint,
-            headers={'Content-Type': 'application/json'},
-            auth=self._auth())
+            timeout=self.timeout,
+            **self._auth())
 
 
 @scenario(50)
@@ -145,6 +133,7 @@ def setup_room():
         }
 
     resp = conn.post('/rooms', data)
+    resp.raise_for_status()
     room_token = resp.json().get('roomToken')
 
     # 3. join room
@@ -152,7 +141,8 @@ def setup_room():
     data = {"action": "join",
             "displayName": "User1",
             "clientMaxSize": room_size}
-    conn.post('/rooms/%s' % room_token, data)
+    resp = conn.post('/rooms/%s' % room_token, data)
+    resp.raise_for_status()
 
     # 4. have other folks join the room as well, refresh and leave
     for x in range(num_participants - 1):
@@ -162,22 +152,27 @@ def setup_room():
                 "displayName": "User%d" % (x + 2),
                 "clientMaxSize": room_size}
 
-        peer_conn.post('/rooms/%s' % room_token, data)
+        resp = peer_conn.post('/rooms/%s' % room_token, data)
+        resp.raise_for_status()
 
         if picked(PERCENTAGE_OF_REFRESH):
-            peer_conn.post('/rooms/%s' % room_token,
-                           data={"action": "refresh"})
+            resp = peer_conn.post('/rooms/%s' % room_token,
+                                  data={"action": "refresh"})
+            resp.raise_for_status()
 
         if picked(PERCENTAGE_OF_MANUAL_LEAVE):
-            peer_conn.post('/rooms/%s' % room_token,
-                           data={"action": "leave"})
+            resp = peer_conn.post('/rooms/%s' % room_token,
+                                  data={"action": "leave"})
+            resp.raise_for_status()
 
     # 5. leave the room
-    conn.post('/rooms/%s' % room_token, data={"action": "leave"})
+    resp = conn.post('/rooms/%s' % room_token, data={"action": "leave"})
+    resp.raise_for_status()
 
     # 6. delete the room (sometimes)
     if picked(PERCENTAGE_OF_MANUAL_ROOM_DELETE):
-        conn.delete('/rooms/%s' % room_token)
+        resp = conn.delete('/rooms/%s' % room_token)
+        resp.raise_for_status()
 
 
 @scenario(50)
@@ -188,15 +183,12 @@ def setup_call():
     conn.authenticate()
 
     # 2. initiate call
-    data = {"callType": "audio-video", "calleeId": conn.user.email}
+    data = {"callType": "audio-video", "calleeId": FXA_EMAIL}
     resp = conn.post('/calls', data)
-    call_data = resp.json()
+    resp.raise_for_status()
+    resp.json()
 
     # 3. list pending calls
     resp = conn.get('/calls?version=200')
-    calls = resp.json()['calls']
-
-
-if __name__ == '__main__':
-    setup_room()
-    setup_call()
+    resp.raise_for_status()
+    resp.json()['calls']
