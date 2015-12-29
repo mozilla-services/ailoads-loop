@@ -1,3 +1,7 @@
+#!/bin/bash
+source loadtest.env && \
+echo "Building loop.json" && \
+cat > loop.json <<EOF
 {
   "name": "Loop Testing",
   "plans": [
@@ -19,7 +23,8 @@
             "LOOP_SERVER_URL=https://loop.stage.mozaws.net:443",
             "LOOP_NB_USERS=100",
             "LOOP_DURATION=60",
-            "LOOP_SP_URL=https://call.stage.mozaws.net/"
+            "LOOP_SP_URL=https://call.stage.mozaws.net/",
+            "FXA_BROWSERID_ASSERTION=${FXA_BROWSERID_ASSERTION}"
           ],
           "dns_name": "testcluster.mozilla.org",
           "port_mapping": "8080:8090,8081:8081,3000:3000",
@@ -30,4 +35,4 @@
     }
   ]
 }
-
+EOF
