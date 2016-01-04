@@ -49,3 +49,6 @@ run_docker: loadtest.env
 
 configure: build loadtest.env
 	@bash loop.tpl
+
+export_docker:
+	docker save "loop/loadtest:latest" | bzip2> loop-latest.tar.bz2
