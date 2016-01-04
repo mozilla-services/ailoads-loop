@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 loadtest.env
+loop.json
 
 # C extensions
 *.so
