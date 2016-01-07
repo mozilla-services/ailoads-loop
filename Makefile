@@ -28,7 +28,7 @@ refresh:
 setup_random: refresh loadtest.env
 
 setup_existing:
-	$(BIN)/fxa-client --browserid --auth "$(FXA_EXISTING_EMAIL)" --account-server https://api.accounts.firefox.com/v1 --audience https://loop.services.mozilla.com --out loadtest.env
+	$(BIN)/fxa-client --browserid --auth "$(FXA_EXISTING_EMAIL)" --account-server https://api.accounts.firefox.com/v1 --audience $(LOOP_SERVER_URL) --out loadtest.env
 
 
 test: build loadtest.env
