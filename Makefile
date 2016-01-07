@@ -19,7 +19,7 @@ $(PYTHON):
 build: $(PYTHON)
 
 loadtest.env:
-	$(BIN)/fxa-client -c --browserid --prefix loop-server --audience https://loop.stage.mozaws.net --out loadtest.env
+	$(BIN)/fxa-client -c --browserid --prefix loop-server --audience https://loop.stage.mozaws.net --env production --out loadtest.env
 
 refresh:
 	@rm -f loadtest.env
@@ -27,7 +27,7 @@ refresh:
 setup_random: refresh loadtest.env
 
 setup_existing:
-	$(BIN)/fxa-client --browserid --auth "$(FXA_EXISTING_EMAIL)" --account-server https://api.accounts.firefox.com/v1 --audience $(LOOP_SERVER_URL) --out loadtest.env
+	$(BIN)/fxa-client --browserid --auth "$(FXA_EXISTING_EMAIL)" --account-server https://api.accounts.firefox.com/v1 --audience https://loop.stage.mozaws.net --out loadtest.env
 
 
 test: build loadtest.env
@@ -44,7 +44,7 @@ docker-build:
 	docker build -t loop/loadtest .
 
 docker-run: loadtest.env
-	bash -c "source loadtest.env; docker run -e LOOP_DURATION=30 -e LOOP_NB_USERS=4 -e FXA_BROWSERID_ASSERTION=\${FXA_BROWSERID_ASSERTION} loop/loadtest"
+	bash -c "source loadtest.env; docker run -e LOOP_DURATION=30 -e LOOP_NB_USERS=4 -e FXA_BROWSERID_ASSERTION=\$${FXA_BROWSERID_ASSERTION} loop/loadtest"
 
 configure: build loadtest.env
 	@bash loop.tpl
