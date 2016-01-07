@@ -1,22 +1,20 @@
-FROM python:3.4-wheezy
-MAINTAINER Mozilla Cloud Services
+# Mozilla Loop Load-Tester
+FROM stackbrew/debian:sid
 
-RUN echo "deb http://ftp.debian.org/debian sid main" >> /etc/apt/sources.list
+MAINTAINER Remy HUBSCHER
 
-RUN apt-get update
-RUN apt-get install -y python3-pip
-RUN apt-get install -y python3-virtualenv
-RUN apt-get install -y git
-RUN apt-get install -y wget
-RUN apt-get install -y python3-dev
+RUN \
+    apt-get update; \
+    apt-get install -y python3-pip python3-venv git build-essential make; \
+    apt-get install -y python3-dev libssl-dev libffi-dev; \
+    git clone https://github.com/mozilla-services/ailoads-loop /home/loop; \
+    cd /home/loop; \
+    make build; \
+	apt-get remove -y -qq git build-essential make python3-pip python3-virtualenv libssl-dev libffi-dev; \
+    apt-get autoremove -y -qq; \
+    apt-get clean -y
 
-# Adding loads user
-RUN adduser --system loads
-USER loads
-
-# deploying the ailoads-loop project
-RUN git clone https://github.com/tarekziade/ailoads-loop /home/loads/ailoads-loop
-RUN cd /home/loads/ailoads-loop; make build
+WORKDIR /home/loop
 
 # run the test
-CMD cd /home/loads/ailoads-loop; venv/bin/ailoads -v -d $LOOP_DURATION -u $LOOP_NB_USERS
+CMD cd /home/loads; venv/bin/ailoads -v -d $LOOP_DURATION -u $LOOP_NB_USERS

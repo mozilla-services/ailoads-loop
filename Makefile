@@ -14,8 +14,7 @@ all: build test
 
 $(PYTHON):
 	$(shell basename $(PYTHON)) -m venv $(VTENV_OPTS) venv
-	$(BIN)/pip install requests requests_hawk flake8
-	$(BIN)/pip install https://github.com/mozilla/PyFxA/archive/loadtest-tools.zip
+	$(BIN)/pip install requests requests_hawk flake8 PyFxA
 	$(BIN)/pip install https://github.com/tarekziade/ailoads/archive/master.zip
 build: $(PYTHON)
 
@@ -41,14 +40,14 @@ test-heavy: build loadtest.env
 clean: refresh
 	rm -fr venv/ __pycache__/
 
-build_docker:
+docker-build:
 	docker build -t loop/loadtest .
 
-run_docker: loadtest.env
+docker-run: loadtest.env
 	bash -c "source loadtest.env && docker run -e LOOP_DURATION=30 -e LOOP_NB_USERS=4 -e FXA_BROWSERID_ASSERTION=$${FXA_BROWSERID_ASSERTION} loop/loadtest"
 
 configure: build loadtest.env
 	@bash loop.tpl
 
-export_docker:
+docker-export:
 	docker save "loop/loadtest:latest" | bzip2> loop-latest.tar.bz2
