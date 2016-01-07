@@ -1,8 +1,9 @@
 import random
 import json
 import os
-from base64 import b64encode, urlsafe_b64decode
 import uuid
+from base64 import b64encode, urlsafe_b64decode
+from six import text_type
 
 from requests_hawk import HawkAuth
 from ailoads.fmwk import scenario, requests
@@ -28,9 +29,20 @@ def picked(percent):
     return random.randint(0, 100) < percent
 
 
+def base64url_decode(input):
+    if isinstance(input, text_type):
+        input = input.encode('utf-8')
+    rem = len(input) % 4
+
+    if rem > 0:
+        input += b'=' * (4 - rem)
+
+    return urlsafe_b64decode(input)
+
+
 def extract_email_from_assertion(assertion):
     fragment = assertion.split('.')[1]
-    decoded_fragment = urlsafe_b64decode(fragment).decode('utf-8')
+    decoded_fragment = base64url_decode(fragment).decode('utf-8')
     info = json.loads(decoded_fragment)
     email = info['fxa-verifiedEmail']
     return email
