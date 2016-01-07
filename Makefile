@@ -44,7 +44,7 @@ docker-build:
 	docker build -t loop/loadtest .
 
 docker-run: loadtest.env
-	bash -c "source loadtest.env && docker run -e LOOP_DURATION=30 -e LOOP_NB_USERS=4 -e FXA_BROWSERID_ASSERTION=$${FXA_BROWSERID_ASSERTION} loop/loadtest"
+	bash -c "source loadtest.env; docker run -e LOOP_DURATION=30 -e LOOP_NB_USERS=4 -e FXA_BROWSERID_ASSERTION=\${FXA_BROWSERID_ASSERTION} loop/loadtest"
 
 configure: build loadtest.env
 	@bash loop.tpl

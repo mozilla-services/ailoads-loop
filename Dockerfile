@@ -17,4 +17,4 @@ RUN \
 WORKDIR /home/loop
 
 # run the test
-CMD cd /home/loads; venv/bin/ailoads -v -d $LOOP_DURATION -u $LOOP_NB_USERS
+CMD venv/bin/ailoads -v -d $LOOP_DURATION -u $LOOP_NB_USERS
