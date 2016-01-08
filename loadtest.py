@@ -69,7 +69,7 @@ class LoopConnection(object):
             "Authorization": "BrowserID %s" % FXA_BROWSERID_ASSERTION,
             'Content-Type': 'application/json'
         }
-        self.timeout = 2
+        self.timeout = 30
         self.authenticated = False
         self.user_hawk_auth = None
 
