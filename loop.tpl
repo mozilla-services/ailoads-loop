@@ -15,13 +15,13 @@ cat > loop.json <<EOF
           "instance_count": 3,
           "instance_region": "us-east-1",
           "instance_type": "m3.large",
-          "run_max_time": 300,
+          "run_max_time": 1800,
           "container_name": "natim/ailoads-loop:latest",
           "environment_data": [
             "LOOP_METRICS_STATSD_SERVER=$STATSD_HOST:$STATSD_PORT",
             "LOOP_SERVER_URL=https://loop.stage.mozaws.net:443",
-            "LOOP_NB_USERS=100",
-            "LOOP_DURATION=60",
+            "LOOP_NB_USERS=10",
+            "LOOP_DURATION=300",
             "LOOP_SP_URL=https://call.stage.mozaws.net/",
             "FXA_BROWSERID_ASSERTION=${FXA_BROWSERID_ASSERTION}"
           ],
