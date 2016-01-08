@@ -19,7 +19,7 @@ $(PYTHON):
 build: $(PYTHON)
 
 loadtest.env:
-	$(BIN)/fxa-client -c --browserid --prefix loop-server --audience https://loop.stage.mozaws.net --env production --out loadtest.env
+	$(BIN)/fxa-client -c --browserid --prefix loop-server --audience https://loop.stage.mozaws.net --out loadtest.env
 
 refresh:
 	@rm -f loadtest.env
