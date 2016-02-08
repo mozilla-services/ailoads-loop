@@ -118,7 +118,19 @@ class LoopConnection(object):
             **self._auth())
 
 
-@scenario(50)
+@scenario(90)
+def firefox_starts():
+    # Authenticate the user
+    conn = get_connection('user1')
+    conn.authenticate({"simplePushURLs": {"calls": SP_URL,
+                                          "rooms": SP_URL}})
+    # List user rooms
+    resp = conn.get('/rooms')
+    resp.raise_for_status()
+    resp.json()
+
+
+@scenario(10)
 def setup_room():
     """Setting up a room"""
     room_size = MAX_NUMBER_OF_PEOPLE_JOINING
@@ -187,7 +199,7 @@ def setup_room():
         resp.raise_for_status()
 
 
-@scenario(50)
+@scenario(1)
 def setup_call():
     """Setting up a call"""
     # 1. register
