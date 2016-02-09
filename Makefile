@@ -1,6 +1,6 @@
 HERE = $(shell pwd)
 BIN = $(HERE)/venv/bin
-PYTHON = $(BIN)/python3.5
+PYTHON = $(BIN)/python3.4
 
 INSTALL = $(BIN)/pip install
 
