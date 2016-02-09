@@ -1,6 +1,7 @@
 HERE = $(shell pwd)
 BIN = $(HERE)/venv/bin
-PYTHON = $(BIN)/python3.4
+PYTHON = python3.5
+VENV_PYTHON = $(BIN)/$(PYTHON)
 
 INSTALL = $(BIN)/pip install
 
@@ -12,11 +13,11 @@ FXA_EXISTING_EMAIL =
 
 all: build test
 
-$(PYTHON):
+$(VENV_PYTHON):
 	$(shell basename $(PYTHON)) -m venv $(VTENV_OPTS) venv
 	$(BIN)/pip install requests requests_hawk flake8 PyFxA
 	$(BIN)/pip install https://github.com/tarekziade/ailoads/archive/master.zip
-build: $(PYTHON)
+build: $(VENV_PYTHON)
 
 loadtest.env:
 	$(BIN)/fxa-client -c --browserid --prefix loop-server --audience https://loop.stage.mozaws.net --out loadtest.env
