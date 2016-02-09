@@ -5,6 +5,7 @@ MAINTAINER Remy HUBSCHER
 
 RUN \
     apt-get update; \
+    apt-get remove -y -qq python3.4; \
     apt-get install -y python3-pip python3-virtualenv git build-essential make; \
     apt-get install -y python3-dev libssl-dev libffi-dev; \
     git clone https://github.com/mozilla-services/ailoads-loop /home/loop; \
