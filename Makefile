@@ -1,7 +1,9 @@
 HERE = $(shell pwd)
 BIN = $(HERE)/venv/bin
-PYTHON = python3.5
+PYTHON = python3.4
 VENV_PYTHON = $(BIN)/$(PYTHON)
+PIP = $(BIN)/pip
+VTENV_OPTS = --python $(PYTHON)
 
 INSTALL = $(BIN)/pip install
 
@@ -14,9 +16,8 @@ FXA_EXISTING_EMAIL =
 all: build test
 
 $(VENV_PYTHON):
-	$(shell basename $(PYTHON)) -m venv $(VTENV_OPTS) venv
-	$(BIN)/pip install requests requests_hawk flake8 PyFxA
-	$(BIN)/pip install https://github.com/tarekziade/ailoads/archive/master.zip
+	virtualenv $(VTENV_OPTS) venv
+	$(PIP) install -r requirements.txt
 build: $(VENV_PYTHON)
 
 loadtest.env:
