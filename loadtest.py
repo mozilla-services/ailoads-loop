@@ -118,7 +118,7 @@ class LoopConnection(object):
             **self._auth())
 
 
-@scenario(90)
+@scenario(95)
 def firefox_starts():
     # Authenticate the user
     resp = requests.get(SERVER_URL + '/push-server-config', timeout=30)
@@ -131,7 +131,7 @@ def firefox_starts():
     resp.raise_for_status()
 
 
-@scenario(10)
+@scenario(4)
 def setup_room():
     """Setting up a room"""
     room_size = MAX_NUMBER_OF_PEOPLE_JOINING
