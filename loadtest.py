@@ -121,14 +121,12 @@ class LoopConnection(object):
 @scenario(90)
 def firefox_starts():
     # Authenticate the user
-    conn = get_connection('user1')
-    resp = conn.get('/calls?version=200')
+    resp = requests.get(SERVER_URL + '/push-server-config', timeout=30)
     resp.raise_for_status()
-    resp.json()['calls']
 
-    resp = conn.get('/rooms')
-    resp.raise_for_status()
-    resp.json()
+    resp = requests.get(SERVER_URL + '/registration', timeout=30,
+                        data=json.dumps({"simplePushURLs": {"calls": SP_URL,
+                                                            "rooms": SP_URL}}))
 
 
 @scenario(10)
