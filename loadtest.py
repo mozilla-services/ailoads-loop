@@ -124,9 +124,11 @@ def firefox_starts():
     resp = requests.get(SERVER_URL + '/push-server-config', timeout=30)
     resp.raise_for_status()
 
-    resp = requests.get(SERVER_URL + '/registration', timeout=30,
-                        data=json.dumps({"simplePushURLs": {"calls": SP_URL,
-                                                            "rooms": SP_URL}}))
+    resp = requests.post(
+        SERVER_URL + '/registration', timeout=30,
+        data=json.dumps({"simplePushURLs": {"calls": SP_URL,
+                                            "rooms": SP_URL}}))
+    resp.raise_for_status()
 
 
 @scenario(10)
